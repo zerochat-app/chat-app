@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ChatSpace">
-<title>ChatSpace｜Hack</title>
+<title>ChatSpace</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
@@ -346,6 +346,12 @@ button.set-row:hover,.set-profile:hover{background:var(--hover)}
 .seg button{padding:5px 10px;border-radius:999px;font-size:13px;color:var(--sub)}
 .seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:700}
 @media(max-width:360px){.set-row.static{flex-wrap:wrap}.seg{margin-left:32px}}
+.dmv{display:grid;gap:10px}
+.dmv-hint{font-size:12px;color:var(--sub)}
+.dmv-title{font-weight:700}
+.dmv-list{display:grid;gap:2px;max-height:56vh;overflow-y:auto}
+.dmv-chat{display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow-y:auto;padding:8px;background:var(--bg);border-radius:14px;border:1px solid var(--line)}
+.modal:has(.dmv){width:min(560px,100%)}
 </style>
 </head>
 <body>
@@ -356,7 +362,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, limitToLast, serverTimestamp, arrayUnion, arrayRemove, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const VERSION = 'Client 1.7 (2026-11-25)';
+const VERSION = 'Client 1.8 (2026-11-25)';
 const firebaseConfig = {
   apiKey: "AIzaSyDq8dDcnA2JHC3Xi7seXFIkidwmHoI7Ihg",
   authDomain: "chat-app-44d95.firebaseapp.com",
@@ -498,6 +504,9 @@ const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 const isQuiet = () => localStorage.getItem('cs_quiet') === '1';
 function toggleQuiet(){ localStorage.setItem('cs_quiet', isQuiet() ? '0' : '1'); toast(isQuiet() ? '静かモード：着信音や通知音を鳴らしません' : '静かモードをオフにしました'); }
 const inFocus = () => !document.hidden && document.hasFocus();
+const isStealth = id => !!id && getLocalSet('stealth_rooms').has(id);
+const visibleMembers = r => (r.members||[]).filter(u=>!(r.ghosts||[]).includes(u)||u===me.uid);
+function syncPresence(){ if(!me) return; updateDoc(doc(db,'users',me.uid), isStealth(cur)?{online:false}:{online:true,lastSeen:serverTimestamp()}).catch(()=>{}); }
 const isDm = r => r.col === 'dms';
 const myName = () => users[me?.uid]?.name || me?.displayName || pendingName || (me?.email||'').split('@')[0] || 'ゲスト';
 const nameOf = uid => users[uid]?.name || '不明';
@@ -632,7 +641,7 @@ function startApp(){
   document.removeEventListener('keydown', onCommandKey);
   listenUsers(); listenRooms();
   clearInterval(typingUiTimer); typingUiTimer=setInterval(()=>{ if(me) renderRooms(); },1500);
-  const beat = () => { if (me && !document.hidden) updateDoc(doc(db,'users',me.uid),{online:true,lastSeen:serverTimestamp()}).catch(()=>{}); };
+  const beat = () => { if (me && !document.hidden && !isStealth(cur)) updateDoc(doc(db,'users',me.uid),{online:true,lastSeen:serverTimestamp()}).catch(()=>{}); };
   hb = setInterval(beat, 120000);
   clearInterval(schedT); schedT = setInterval(runSched, 15000); setTimeout(runSched, 3000);
   document.addEventListener('visibilitychange', onVisible);
@@ -651,7 +660,7 @@ function teardown_listeners(){ document.removeEventListener('keydown', onCommand
 const welcome = () => h('div',{class:'welcome'}, h('div',{}, h('div',{style:'font-size:20px;font-weight:700;color:var(--ink);margin-bottom:6px'},'ようこそ、'+myName()+'さん'), h('div',{},'左の一覧からルームを選ぶか、新しく作ってみましょう。')));
 function onVisible(){
   if (!me || document.hidden) return;
-  updateDoc(doc(db,'users',me.uid),{online:true,lastSeen:serverTimestamp()}).catch(()=>{});
+  if (!isStealth(cur)) updateDoc(doc(db,'users',me.uid),{online:true,lastSeen:serverTimestamp()}).catch(()=>{});
   flushRead();
 }
 function drawFilters(){
@@ -871,7 +880,7 @@ function openRoom(id){
   if (!rooms[id]) return;
   if (cur === id){ document.body.classList.add('in-chat'); return; }
   unsubMsgs?.(); pendingRead.clear(); replyTo = null;
-  cur = id; if (!isTemporaryRoom(id)){ readMap[id] = Date.now(); saveRead(); }
+  cur = id; syncPresence(); if (!isTemporaryRoom(id)){ readMap[id] = Date.now(); saveRead(); }
   document.body.classList.add('in-chat');
   $('#main').replaceChildren(
     h('div',{class:'chat-head',id:'chatHead'}),
@@ -883,7 +892,7 @@ function openRoom(id){
   subscribeMessages(id);
 }
 function closeRoom(){
-  unsubMsgs?.(); unsubMsgs = null; if (temporaryRoomId){ delete rooms[temporaryRoomId]; temporaryRoomId=null; temporaryRoomMeta=null; } cur = null; pendingRead.clear(); replyTo = null;
+  unsubMsgs?.(); unsubMsgs = null; if (temporaryRoomId){ delete rooms[temporaryRoomId]; temporaryRoomId=null; temporaryRoomMeta=null; } cur = null; pendingRead.clear(); replyTo = null; syncPresence();
   document.body.classList.remove('in-chat');
   $('#main')?.replaceChildren(welcome());
   renderRooms();
@@ -896,7 +905,7 @@ function renderHeader(){
   if (isTemporaryRoom(cur)){ sub='一時入室 · 閲覧専用'; }
   else if (typing.length){ sub = typing.join('、') + (typing.length===1?' が入力中…':' が入力中…'); cls += ' typing'; clearTimeout(typingTimer); typingTimer = setTimeout(renderHeader, 4200); }
   else if (isDm(r)) sub = isOnline(other) ? 'オンライン' : 'オフライン';
-  else sub = (r.members||[]).length + '人のメンバー' + (r.desc ? '・' + r.desc : '');
+  else sub = visibleMembers(r).length + '人のメンバー' + (r.desc ? '・' + r.desc : '');
   if (isNoReadMode()) sub += ' · 既読を付けないモード';
   const headItems=[
     h('button',{class:'icon-btn back','aria-label':'一覧に戻る',onclick:()=>isTemporaryRoom(cur)?exitTemporaryRoom():document.body.classList.remove('in-chat')}, ico('back')),
@@ -941,6 +950,7 @@ function roomMenu(anchor){
   } else { items.push({icon:'download',label:'会話をエクスポート',run:()=>exportCurrentRoom()}); items.push({icon:'trash',label:'このDMを削除',danger:true,run:()=>removeRoom(r)}); }
   if (!items.some(x=>x.label.includes('お気に入り'))) items.push({icon:'star',label:isFavoriteRoom(r.id)?'お気に入りを解除':'お気に入りに追加',run:()=>toggleFavoriteRoom(r.id)});
   if (!items.some(x=>x.label.includes('通知'))) items.push({icon:isRoomMuted(r.id)?'bell':'belloff',label:isRoomMuted(r.id)?'このルームの通知を再開':'このルームをミュート',run:()=>toggleRoomMuted(r.id)});
+  if (isStealth(r.id)){ items.unshift({icon:'user-plus',label:'通常参加に切り替える',run:()=>stealthOff(r)},{icon:'logout',label:'こっそり退出',danger:true,run:()=>stealthLeave(r)}); }
   popup(anchor, items);
 }
 async function copy(t, ok){ try{ await navigator.clipboard.writeText(t); toast(ok); }catch(e){ prompt('コピーしてください', t); } }
@@ -951,7 +961,7 @@ function membersModal(r0){
   const draw = () => {
     const r = rooms[r0.id] || r0;
     const iAmCreator = r.createdBy === me.uid, iAmAdmin = isAdmin(r);
-    body.replaceChildren(...(r.members||[]).map(u => {
+    body.replaceChildren(...visibleMembers(r).map(u => {
       const creator = u === r.createdBy, admin = isAdmin(r, u);
       const label = (creator ? '作成者' : admin ? '管理者' : '') + (isOnline(u) ? (admin?'・':'')+'オンライン' : (admin?'・':'')+'オフライン');
       const acts = [];
@@ -1038,7 +1048,7 @@ function subscribeMessages(id){
         box.insertBefore(el, box.children[ch.newIndex] || null);
         if (ch.type === 'added' && m.author === me.uid) mineAdded = true;
       }
-      if (!isNoReadMode() && !isTemporaryRoom(id) && m.type !== 'system' && m.author !== me.uid && !(m.readBy||[]).includes(me.uid)) pendingRead.add(mid);
+      if (!isNoReadMode() && !isStealth(id) && !isTemporaryRoom(id) && m.type !== 'system' && m.author !== me.uid && !(m.readBy||[]).includes(me.uid)) pendingRead.add(mid);
     });
     const empty = $('#chatEmpty'); if (empty) empty.hidden = box.children.length > 0;
     if (first || nearBottom || mineAdded) box.scrollTop = box.scrollHeight;
@@ -1049,7 +1059,7 @@ function subscribeMessages(id){
 }
 async function flushRead(){
   const r = rooms[cur];
-  if (isNoReadMode() || isTemporaryRoom(cur) || !inFocus() || !r || !pendingRead.size) return;
+  if (isNoReadMode() || isStealth(cur) || isTemporaryRoom(cur) || !inFocus() || !r || !pendingRead.size) return;
   const ids = [...pendingRead]; pendingRead.clear();
   try {
     const b = writeBatch(db);
@@ -1117,7 +1127,7 @@ function msgEl(id, m){
 }
 function showReadBy(m,r){
   const ids = [...new Set((m.readBy||[]).filter(u=>u && u!==m.author))];
-  const members = (r?.members || []).filter(u=>u && u!==m.author);
+  const members = (r ? visibleMembers(r) : []).filter(u=>u && u!==m.author);
   const list = h('div',{style:'display:grid;gap:6px'});
   const readSet = new Set(ids);
   const ordered = [...new Set([...ids, ...members.filter(u=>!readSet.has(u))])];
@@ -1283,28 +1293,63 @@ async function previewRoom(id,meta=null){
   }catch(e){console.error('preview',e);body.replaceChildren(h('div',{class:'empty'},'プレビューを取得できませんでした。Firestoreルールでこのメッセージを読む権限が必要です。入室・既読を付ける処理は実行していません。'))}
 }
 function dmViewerModal(){
-  const people=Object.entries(users).filter(([uid,u])=>u.name).sort((a,b)=>a[1].name.localeCompare(b[1].name,'ja'));
-  const a=h('select',{class:'field'}),b=h('select',{class:'field'});
-  a.append(h('option',{value:''},'1人目を選択'));b.append(h('option',{value:''},'2人目を選択'));
-  people.forEach(([uid,u])=>{a.append(h('option',{value:uid},u.name));b.append(h('option',{value:uid},u.name))});
-  const list=h('div',{class:'preview-list'});
-  const go=h('button',{class:'btn',onclick:async()=>{
-    if(!a.value||!b.value||a.value===b.value)return toast('異なる2人を選択してください');
-    const pair=[a.value,b.value].sort(),id='dm_'+pair.join('_');
-    list.replaceChildren(h('div',{class:'empty'},'DM履歴を読み込んでいます…'));
+  const root=h('div',{class:'dmv'});
+  const tm=ts=>ms(ts)?new Date(ms(ts)).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+  const backBtn=(label,fn)=>h('button',{class:'btn ghost',type:'button',style:'padding:6px 12px;font-size:13px;justify-self:start',onclick:fn},'← '+label);
+  const note=t=>h('div',{class:'empty'},t);
+  const stepUsers=()=>{
+    const q=h('input',{class:'field',placeholder:'名前で探す（この人のDMを見る）'});
+    const list=h('div',{class:'dmv-list'});
+    const draw=()=>{
+      const key=q.value.trim().toLowerCase();
+      const arr=Object.entries(users).filter(([u,d])=>d.name&&(!key||d.name.toLowerCase().includes(key))).sort((a,b)=>a[1].name.localeCompare(b[1].name,'ja'));
+      list.replaceChildren(...(arr.length?arr.map(([u,d])=>h('button',{class:'urow',type:'button',onclick:()=>stepDms(u)},avatar(u,d.name,true,isOnline(u)),h('div',{class:'n'},d.name,h('small',{},d.email||'')))):[note('見つかりません')]));
+    };
+    q.addEventListener('input',draw);draw();
+    root.replaceChildren(h('p',{class:'dmv-hint'},'①DMを見たい人を選ぶ → ②相手を選ぶ → ③会話を表示。閲覧権限がない場合は読み込めません。'),q,list);
+  };
+  const stepDms=async uid=>{
+    root.replaceChildren(backBtn('人を選び直す',stepUsers),h('div',{class:'dmv-title'},nameOf(uid)+' のDM一覧'),note('読み込み中…'));
     try{
-      const ref=doc(db,'dms',id),roomSnap=await getDoc(ref);
-      if(!roomSnap.exists()){list.replaceChildren(h('div',{class:'empty'},'この2人のDMは見つかりませんでした。'));return;}
+      const sn=await getDocs(query(collection(db,'dms'),where('members','array-contains',uid)));
+      const arr=sn.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>ms(b.lastMsgTs)-ms(a.lastMsgTs));
+      const list=h('div',{class:'dmv-list'});
+      arr.forEach(d=>{const other=(d.members||[]).find(x=>x!==uid)||uid;
+        list.append(h('button',{class:'urow',type:'button',onclick:()=>stepChat(uid,other,d.id)},avatar(other,nameOf(other),true,isOnline(other)),
+          h('div',{class:'n'},nameOf(other),h('small',{},(d.lastMsg||'メッセージなし')+(ms(d.lastMsgTs)?' · '+tm(d.lastMsgTs):'')))))});
+      root.replaceChildren(backBtn('人を選び直す',stepUsers),h('div',{class:'dmv-title'},nameOf(uid)+' のDM一覧（'+arr.length+'件）'),arr.length?list:note('DMはありません'));
+    }catch(e){console.error('DM viewer',e);root.replaceChildren(backBtn('人を選び直す',stepUsers),note('DM一覧を読み込めませんでした。このアカウントに閲覧権限がないか、Firestoreルールで拒否されています。'))}
+  };
+  const stepChat=async(a,b,id)=>{
+    root.replaceChildren(backBtn('DM一覧に戻る',()=>stepDms(a)),h('div',{class:'dmv-title'},nameOf(a)+' × '+nameOf(b)),note('読み込み中…'));
+    try{
       const sn=await getDocs(query(collection(db,'dms',id,'messages'),orderBy('ts','asc'),limitToLast(500)));
       const docs=sn.docs.map(d=>({id:d.id,data:d.data()}));
-      list.replaceChildren();
-      if(!docs.length)list.append(h('div',{class:'empty'},'メッセージはありません。'));
-      docs.forEach(x=>{const m=x.data;const node=h('div',{class:'preview-message'},h('small',{},(m.type==='system'?'システム':nameOf(m.author))+' · '+(ms(m.ts)?new Date(ms(m.ts)).toLocaleString('ja-JP'):'日時不明')),h('div',{},messageText(m)));if(m.hasImage&&typeof m.image==='string'&&m.image.startsWith('data:image/'))node.append(h('img',{src:m.image,alt:'添付画像',loading:'lazy'}));list.append(node)});
-      const r={id,col:'dms',name:nameOf(a.value)+' × '+nameOf(b.value)};
-      list.append(h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},h('button',{class:'btn ghost',onclick:async()=>{const f=await chooseExportFormat();if(f)exportMessages(r,docs,f)}},'エクスポート')));
-    }catch(e){console.error('DM viewer',e);list.replaceChildren(h('div',{class:'empty'},'このDMを読み込めませんでした。ログイン中のアカウントにこのDMの閲覧権限がないか、Firestoreルールで拒否されています。権限チェックを回避することはしません。'))}
-  }},'DM履歴を表示');
-  modal('DMビューアー',[h('p',{style:'font-size:13px;color:var(--sub)'},'2人を指定して既存DMを読み込みます。ログイン中のアカウントにFirestore上の閲覧権限がある場合のみ表示できます。'),a,b,go,list]);
+      const q=h('input',{class:'field',placeholder:'この会話内を検索'});
+      const box=h('div',{class:'dmv-chat'});
+      const draw=()=>{
+        const key=q.value.trim().toLowerCase();
+        const rows=docs.filter(x=>!key||messageText(x.data).toLowerCase().includes(key));
+        box.replaceChildren();
+        if(!rows.length){box.append(note(docs.length?'一致なし':'メッセージはありません'));return}
+        rows.forEach(x=>{const m=x.data;
+          if(m.type==='system'){box.append(h('div',{class:'sys'},m.text));return}
+          const el=h('div',{class:'msg'+(m.author===a?' mine':''),style:'max-width:88%'},h('div',{class:'who'},nameOf(m.author)));
+          const bub=h('div',{class:'bubble'},messageText(m.data||m));
+          if(m.hasImage&&typeof m.image==='string'&&m.image.startsWith('data:image/'))bub.append(h('img',{src:m.image,alt:'画像',loading:'lazy',style:'display:block;max-width:100%;max-height:200px;border-radius:10px;margin-top:4px'}));
+          el.append(bub,h('div',{class:'info'},tm(m.ts)));box.append(el);
+        });
+        box.scrollTop=box.scrollHeight;
+      };
+      q.addEventListener('input',draw);
+      const r={id,col:'dms',name:nameOf(a)+' × '+nameOf(b)};
+      root.replaceChildren(backBtn('DM一覧に戻る',()=>stepDms(a)),h('div',{class:'dmv-title'},nameOf(a)+' × '+nameOf(b)+'（'+docs.length+'件）'),q,box,
+        h('button',{class:'btn ghost',type:'button',onclick:async()=>{const f=await chooseExportFormat();if(f)exportMessages(r,docs,f)}},'エクスポート'));
+      draw();
+    }catch(e){console.error('DM chat',e);root.replaceChildren(backBtn('DM一覧に戻る',()=>stepDms(a)),note('この会話を読み込めませんでした。閲覧権限がありません。'))}
+  };
+  stepUsers();
+  modal('DMビューアー',root);
 }
 async function globalSearchModal(){
   const q=h('input',{class:'field',placeholder:'全ルーム・DMから検索'}),list=h('div',{class:'preview-list'});
@@ -1352,7 +1397,7 @@ function settingsModal(){
     }else{
       list.append(sec('プライバシー'));
       list.append(row('eye-off','既読を付けない','この端末から既読情報を送らない',sw(isNoReadMode()),()=>{toggleNoReadMode();draw()}));
-      list.append(row('eye','一時入室','閲覧専用・参加通知なし（ルーム一覧から）',chev(),go(roomModal)));
+      list.append(row('eye','一時入室','参加通知・既読・オンライン表示なしで入る（ルーム一覧から）',chev(),go(roomModal)));
       list.append(sec('検索・閲覧'));
       list.append(row('search','全ルーム・DM検索','参加中の会話を横断検索',chev(),go(globalSearchModal)));
       list.append(row('users','DMビューアー','閲覧権限がある場合のみ表示',chev(),go(dmViewerModal)));
@@ -1583,7 +1628,7 @@ async function pushRelay(r, text){
   } catch(e){}
 }
 function sendTyping(){
-  const r = rooms[cur]; if (isTemporaryRoom(cur) || !r || Date.now() - lastTypingSent < 2500) return;
+  const r = rooms[cur]; if (isTemporaryRoom(cur) || isStealth(cur) || !r || Date.now() - lastTypingSent < 2500) return;
   lastTypingSent = Date.now();
   updateDoc(roomRef(r), {['typing.'+me.uid]: serverTimestamp()}).catch(()=>{});
 }
@@ -1653,12 +1698,12 @@ function roomModal(){
           const joined = (r.members||[]).includes(me.uid);
           const joinOptions=anchor=>popup(anchor,[
             {icon:'user-plus',label:'通常参加',run:async()=>{const ok=await joinByCode(r.id);if(ok)close()}},
-            {icon:'eye',label:'一時入室（閲覧のみ・参加通知なし）',run:async()=>{const ok=await temporaryEnterRoom(r.id,r);if(ok)close()}}
+            {icon:'eye',label:'こっそり入室（通知・既読・オンライン表示なし）',run:async()=>{const ok=await temporaryEnterRoom(r.id,r);if(ok)close()}}
           ]);
           const row = h('button',{class:'urow',style:'width:100%;text-align:left',onclick:e=>{
             if (joined){close();openRoom(r.id);return;}
             joinOptions(e.currentTarget);
-          }},avatar(r.createdBy||r.id,r.name||'ルーム',true),h('div',{class:'n'},r.name||'ルーム',h('small',{},(r.desc||'説明なし')+' · '+(r.members||[]).length+'人 · '+(joined?'参加中':'未参加'))));
+          }},avatar(r.createdBy||r.id,r.name||'ルーム',true),h('div',{class:'n'},r.name||'ルーム',h('small',{},(r.desc||'説明なし')+' · '+visibleMembers(r).length+'人 · '+(joined?'参加中':'未参加'))));
           const action = joined
             ? h('button',{class:'btn ghost',onclick:()=>{close();openRoom(r.id)}},'開く')
             : h('button',{class:'btn ghost',onclick:e=>joinOptions(e.currentTarget)},'参加 ▾');
@@ -1678,19 +1723,32 @@ function roomModal(){
   draw();
   close = modal('ルーム', body);
 }
-async function temporaryEnterRoom(id,meta=null){
+async function temporaryEnterRoom(id){
+  const set=getLocalSet('stealth_rooms');
   try{
-    const snap=await getDoc(doc(db,'rooms',id));
-    if(!snap.exists())return toast('そのルームは見つかりません'),false;
-    const data=snap.data();
-    if((data.banned||[]).includes(me.uid))return toast('このルームは閲覧できません'),false;
-    temporaryRoomId=id;
-    temporaryRoomMeta={id,col:'rooms',...data,_temporary:true};
-    rooms[id]=temporaryRoomMeta;
-    openRoom(id);
-    toast('一時入室しました（閲覧専用・参加通知なし）');
+    const ref=doc(db,'rooms',id), snap=await getDoc(ref);
+    if(!snap.exists()){toast('そのルームは見つかりません');return false}
+    if((snap.data().banned||[]).includes(me.uid)){toast('このルームには入れません');return false}
+    set.add(id);putLocalSet('stealth_rooms',set);
+    await updateDoc(ref,{members:arrayUnion(me.uid),ghosts:arrayUnion(me.uid)});
+    waitOpen(id);
+    toast('こっそり入室しました（参加通知・既読・入力中・オンライン表示なし）');
     return true;
-  }catch(e){console.error('temporary room',e);toast('一時入室できませんでした。Firestoreの閲覧ルールを確認してください');return false}
+  }catch(e){console.error('stealth enter',e);set.delete(id);putLocalSet('stealth_rooms',set);toast('入室できませんでした');return false}
+}
+async function stealthLeave(r){
+  if(!(await confirmBox('こっそり退出','通知なしで退出します。','退出する')))return;
+  const set=getLocalSet('stealth_rooms');set.delete(r.id);putLocalSet('stealth_rooms',set);
+  if(cur===r.id)closeRoom();
+  try{await updateDoc(roomRef(r),{members:arrayRemove(me.uid),ghosts:arrayRemove(me.uid)});toast('退出しました')}catch(e){toast('退出できませんでした')}
+}
+async function stealthOff(r){
+  try{
+    await updateDoc(roomRef(r),{ghosts:arrayRemove(me.uid)});
+    const set=getLocalSet('stealth_rooms');set.delete(r.id);putLocalSet('stealth_rooms',set);
+    await sysMsg(r,myName()+'が参加しました').catch(()=>{});
+    syncPresence();renderHeader();toast('通常参加に切り替えました');
+  }catch(e){toast('切り替えできませんでした')}
 }
 function waitOpen(id){ let n = 0; const t = setInterval(()=>{ if (rooms[id]){ clearInterval(t); openRoom(id); } else if (++n > 40) clearInterval(t); }, 150); }
 async function createRoom(name, desc, invitees){
