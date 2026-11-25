@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ChatSpace">
-<title>ChatSpace</title>
+<title>ChatSpace Client</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
@@ -352,6 +352,48 @@ button.set-row:hover,.set-profile:hover{background:var(--hover)}
 .dmv-list{display:grid;gap:2px;max-height:56vh;overflow-y:auto}
 .dmv-chat{display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow-y:auto;padding:8px;background:var(--bg);border-radius:14px;border:1px solid var(--line)}
 .modal:has(.dmv){width:min(560px,100%)}
+
+/* ---------- animations ---------- */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes dropIn{from{opacity:0;transform:translateY(-6px) scale(.95)}to{opacity:1;transform:none}}
+@keyframes msgIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes slideUp{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes rowIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+@keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.35)}100%{box-shadow:0 0 0 26px rgba(255,255,255,0)}}
+@keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
+.overlay{animation:fadeIn .18s ease}
+.modal{animation:popIn .24s cubic-bezier(.2,.9,.3,1.2)}
+.popup{animation:dropIn .16s ease;transform-origin:top right}
+.toast{animation:slideUp .25s cubic-bezier(.2,.9,.3,1.2)}
+.msg{animation:msgIn .24s ease}
+.sys{animation:fadeIn .3s ease}
+.room-list .room{animation:rowIn .28s ease both}
+.room-list .room:nth-child(2){animation-delay:.03s}.room-list .room:nth-child(3){animation-delay:.06s}.room-list .room:nth-child(4){animation-delay:.09s}.room-list .room:nth-child(5){animation-delay:.12s}.room-list .room:nth-child(n+6){animation-delay:.15s}
+.room{transition:background .15s,transform .12s}
+.room:active{transform:scale(.98)}
+.btn,.icon-btn,.chip,.urow,.set-row,.hit,.cbtn{transition:background .15s,transform .12s,filter .15s,box-shadow .15s,opacity .15s}
+.btn:active,.icon-btn:active,.cbtn:active,.set-row:active,.urow:active{transform:scale(.94)}
+.btn:not(:disabled):hover{filter:brightness(1.08)}
+.chip{transition:transform .12s,background .15s}.chip:active{animation:bump .25s}
+.msg.open .bar{animation:dropIn .16s ease}
+.bar button{transition:transform .12s,background .15s}.bar button:hover{transform:scale(1.25)}
+.stamps.show{animation:popIn .2s ease}
+.sgrid button{transition:transform .1s,background .15s}.sgrid button:hover{transform:scale(1.2)}
+.sug{animation:dropIn .14s ease}
+.callov{animation:fadeIn .25s ease}
+.callov .avatar{animation:ringPulse 1.6s ease-out infinite}
+.lb{animation:fadeIn .2s ease}
+.lb img{animation:popIn .25s ease}
+.dot{animation:bump 1.6s ease infinite}
+.tabs button,.stab button,.filters button,.settings-tabs button,.seg button{transition:background .18s,color .18s}
+.nbanner,.callbar,.pinbar,.temp-banner{animation:dropIn .25s ease}
+.login-card{animation:popIn .4s cubic-bezier(.2,.9,.3,1.1)}
+.welcome>div{animation:popIn .45s ease}
+.avatar{transition:transform .15s}.room:hover .avatar{transform:scale(1.06)}
+.set-list>*{animation:rowIn .25s ease both}
+.set-list>*:nth-child(2){animation-delay:.03s}.set-list>*:nth-child(3){animation-delay:.06s}.set-list>*:nth-child(4){animation-delay:.09s}.set-list>*:nth-child(n+5){animation-delay:.12s}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -362,7 +404,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, limitToLast, serverTimestamp, arrayUnion, arrayRemove, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const VERSION = 'Client 1.8 (2026-11-25)';
+const VERSION = 'Client 1.9 (2026-11-25)';
 const firebaseConfig = {
   apiKey: "AIzaSyDq8dDcnA2JHC3Xi7seXFIkidwmHoI7Ihg",
   authDomain: "chat-app-44d95.firebaseapp.com",
@@ -504,8 +546,8 @@ const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 const isQuiet = () => localStorage.getItem('cs_quiet') === '1';
 function toggleQuiet(){ localStorage.setItem('cs_quiet', isQuiet() ? '0' : '1'); toast(isQuiet() ? '静かモード：着信音や通知音を鳴らしません' : '静かモードをオフにしました'); }
 const inFocus = () => !document.hidden && document.hasFocus();
-const isStealth = id => !!id && getLocalSet('stealth_rooms').has(id);
-const visibleMembers = r => (r.members||[]).filter(u=>!(r.ghosts||[]).includes(u)||u===me.uid);
+const isStealth = id => !!id && (getLocalSet('stealth_rooms').has(id) || (users[me?.uid]?.stealthRooms||[]).includes(id));
+const visibleMembers = r => (r.members||[]).filter(u=>u===me.uid||!(users[u]?.stealthRooms||[]).includes(r.id));
 function syncPresence(){ if(!me) return; updateDoc(doc(db,'users',me.uid), isStealth(cur)?{online:false}:{online:true,lastSeen:serverTimestamp()}).catch(()=>{}); }
 const isDm = r => r.col === 'dms';
 const myName = () => users[me?.uid]?.name || me?.displayName || pendingName || (me?.email||'').split('@')[0] || 'ゲスト';
@@ -1724,27 +1766,36 @@ function roomModal(){
   close = modal('ルーム', body);
 }
 async function temporaryEnterRoom(id){
-  const set=getLocalSet('stealth_rooms');
+  const meRef=doc(db,'users',me.uid);
+  let marked=false;
   try{
     const ref=doc(db,'rooms',id), snap=await getDoc(ref);
     if(!snap.exists()){toast('そのルームは見つかりません');return false}
-    if((snap.data().banned||[]).includes(me.uid)){toast('このルームには入れません');return false}
-    set.add(id);putLocalSet('stealth_rooms',set);
-    await updateDoc(ref,{members:arrayUnion(me.uid),ghosts:arrayUnion(me.uid)});
+    const d=snap.data();
+    if((d.banned||[]).includes(me.uid)){toast('このルームには入れません');return false}
+    // 目印は自分のユーザー情報にだけ書く（ルーム側は通常参加と同じ「membersの追加」だけ）
+    await updateDoc(meRef,{stealthRooms:arrayUnion(id)}); marked=true;
+    const set=getLocalSet('stealth_rooms');set.add(id);putLocalSet('stealth_rooms',set);
+    if(!(d.members||[]).includes(me.uid)) await updateDoc(ref,{members:arrayUnion(me.uid)});
     waitOpen(id);
     toast('こっそり入室しました（参加通知・既読・入力中・オンライン表示なし）');
     return true;
-  }catch(e){console.error('stealth enter',e);set.delete(id);putLocalSet('stealth_rooms',set);toast('入室できませんでした');return false}
+  }catch(e){
+    console.error('stealth enter',e);
+    const set=getLocalSet('stealth_rooms');set.delete(id);putLocalSet('stealth_rooms',set);
+    if(marked) updateDoc(meRef,{stealthRooms:arrayRemove(id)}).catch(()=>{});
+    toast('入室できませんでした（Firestoreのルールを確認してください）');return false;
+  }
 }
 async function stealthLeave(r){
   if(!(await confirmBox('こっそり退出','通知なしで退出します。','退出する')))return;
   const set=getLocalSet('stealth_rooms');set.delete(r.id);putLocalSet('stealth_rooms',set);
   if(cur===r.id)closeRoom();
-  try{await updateDoc(roomRef(r),{members:arrayRemove(me.uid),ghosts:arrayRemove(me.uid)});toast('退出しました')}catch(e){toast('退出できませんでした')}
+  try{await updateDoc(roomRef(r),{members:arrayRemove(me.uid)});updateDoc(doc(db,'users',me.uid),{stealthRooms:arrayRemove(r.id)}).catch(()=>{});toast('退出しました')}catch(e){toast('退出できませんでした')}
 }
 async function stealthOff(r){
   try{
-    await updateDoc(roomRef(r),{ghosts:arrayRemove(me.uid)});
+    await updateDoc(doc(db,'users',me.uid),{stealthRooms:arrayRemove(r.id)});
     const set=getLocalSet('stealth_rooms');set.delete(r.id);putLocalSet('stealth_rooms',set);
     await sysMsg(r,myName()+'が参加しました').catch(()=>{});
     syncPresence();renderHeader();toast('通常参加に切り替えました');
