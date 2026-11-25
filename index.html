@@ -353,46 +353,39 @@ button.set-row:hover,.set-profile:hover{background:var(--hover)}
 .dmv-chat{display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow-y:auto;padding:8px;background:var(--bg);border-radius:14px;border:1px solid var(--line)}
 .modal:has(.dmv){width:min(560px,100%)}
 
-/* ---------- animations ---------- */
+/* ---------- animations (用途ごとに別の動き・控えめ) ---------- */
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes popIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
-@keyframes dropIn{from{opacity:0;transform:translateY(-6px) scale(.95)}to{opacity:1;transform:none}}
-@keyframes msgIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
-@keyframes slideUp{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
-@keyframes rowIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
-@keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.35)}100%{box-shadow:0 0 0 26px rgba(255,255,255,0)}}
-@keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
-.overlay{animation:fadeIn .18s ease}
-.modal{animation:popIn .24s cubic-bezier(.2,.9,.3,1.2)}
-.popup{animation:dropIn .16s ease;transform-origin:top right}
-.toast{animation:slideUp .25s cubic-bezier(.2,.9,.3,1.2)}
-.msg{animation:msgIn .24s ease}
-.sys{animation:fadeIn .3s ease}
-.room-list .room{animation:rowIn .28s ease both}
-.room-list .room:nth-child(2){animation-delay:.03s}.room-list .room:nth-child(3){animation-delay:.06s}.room-list .room:nth-child(4){animation-delay:.09s}.room-list .room:nth-child(5){animation-delay:.12s}.room-list .room:nth-child(n+6){animation-delay:.15s}
-.room{transition:background .15s,transform .12s}
-.room:active{transform:scale(.98)}
-.btn,.icon-btn,.chip,.urow,.set-row,.hit,.cbtn{transition:background .15s,transform .12s,filter .15s,box-shadow .15s,opacity .15s}
-.btn:active,.icon-btn:active,.cbtn:active,.set-row:active,.urow:active{transform:scale(.94)}
-.btn:not(:disabled):hover{filter:brightness(1.08)}
-.chip{transition:transform .12s,background .15s}.chip:active{animation:bump .25s}
-.msg.open .bar{animation:dropIn .16s ease}
-.bar button{transition:transform .12s,background .15s}.bar button:hover{transform:scale(1.25)}
-.stamps.show{animation:popIn .2s ease}
-.sgrid button{transition:transform .1s,background .15s}.sgrid button:hover{transform:scale(1.2)}
-.sug{animation:dropIn .14s ease}
+@keyframes sheetIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes menuIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes inOther{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+@keyframes inMine{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
+@keyframes barIn{from{opacity:0;transform:translateY(-4px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes trayIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes zoomIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+@keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.28)}100%{box-shadow:0 0 0 22px rgba(255,255,255,0)}}
+.overlay{animation:fadeIn .15s ease}
+.modal{animation:sheetIn .2s ease-out}
+.popup{animation:menuIn .12s ease-out;transform-origin:top right}
+.toast{animation:toastIn .2s ease-out}
+.main>.msgs{animation:fadeIn .22s ease}
+.msg.enter{animation:inOther .18s ease-out}
+.msg.mine.enter{animation:inMine .18s ease-out}
+.msg.open .bar{animation:barIn .14s ease-out}
+.stamps.show{animation:trayIn .16s ease-out}
+.sug{animation:menuIn .12s ease-out;transform-origin:bottom left}
 .callov{animation:fadeIn .25s ease}
-.callov .avatar{animation:ringPulse 1.6s ease-out infinite}
-.lb{animation:fadeIn .2s ease}
-.lb img{animation:popIn .25s ease}
-.dot{animation:bump 1.6s ease infinite}
+.callov .avatar{animation:ringPulse 1.8s ease-out infinite}
+.lb{animation:fadeIn .18s ease}
+.lb img{animation:zoomIn .2s ease-out}
+.login-card{animation:sheetIn .3s ease-out}
+.room,.btn,.icon-btn,.chip,.urow,.set-row,.hit,.cbtn,.bar button,.sgrid button{transition:background .15s,transform .1s,filter .15s,opacity .15s}
+.btn:active,.icon-btn:active,.cbtn:active,.set-row:active,.urow:active,.room:active{transform:scale(.97)}
+.bar button:hover,.sgrid button:hover{transform:scale(1.12)}
+.btn:not(:disabled):hover{filter:brightness(1.06)}
 .tabs button,.stab button,.filters button,.settings-tabs button,.seg button{transition:background .18s,color .18s}
-.nbanner,.callbar,.pinbar,.temp-banner{animation:dropIn .25s ease}
-.login-card{animation:popIn .4s cubic-bezier(.2,.9,.3,1.1)}
-.welcome>div{animation:popIn .45s ease}
-.avatar{transition:transform .15s}.room:hover .avatar{transform:scale(1.06)}
-.set-list>*{animation:rowIn .25s ease both}
-.set-list>*:nth-child(2){animation-delay:.03s}.set-list>*:nth-child(3){animation-delay:.06s}.set-list>*:nth-child(4){animation-delay:.09s}.set-list>*:nth-child(n+5){animation-delay:.12s}
+.sys{cursor:pointer}
+.sys:hover{text-decoration:line-through;opacity:.8}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -404,7 +397,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, limitToLast, serverTimestamp, arrayUnion, arrayRemove, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const VERSION = 'Client 1.9 (2026-11-25)';
+const VERSION = 'Client 2.0 (2026-11-25)';
 const firebaseConfig = {
   apiKey: "AIzaSyDq8dDcnA2JHC3Xi7seXFIkidwmHoI7Ihg",
   authDomain: "chat-app-44d95.firebaseapp.com",
@@ -975,6 +968,28 @@ function jumpTo(id){
   el.scrollIntoView({block:'center'}); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
 }
 
+const HIST_RE = /参加しました|退出しました|招待しました|BANされました|管理者/;
+function hideSysLocal(rid, ids){
+  const set = getLocalSet('hidden_sys'); ids.forEach(i => set.add(rid + '/' + i)); putLocalSet('hidden_sys', set);
+  if (cur === rid) ids.forEach(i => { const el = curEls.get(i), m0 = msgCache.get(i); if (el && m0){ const n = msgEl(i, m0); el.replaceWith(n); curEls.set(i, n); } });
+}
+async function removeSysMsg(id){
+  const r = rooms[cur]; if (!r) return;
+  if (!(await confirmBox('履歴を削除', 'この通知（' + (msgCache.get(id)?.text || '') + '）を削除しますか？', '削除する'))) return;
+  try { await deleteDoc(mref(id)); toast('削除しました'); }
+  catch(e){ hideSysLocal(r.id, [id]); toast('サーバー側では削除できないため、この端末で非表示にしました'); }
+}
+async function clearJoinLeaveHistory(r){
+  const ids = [...msgCache.entries()].filter(([,m]) => m.type === 'system' && HIST_RE.test(m.text || '')).map(([i]) => i);
+  if (!ids.length) return toast('削除できる入退室の履歴はありません');
+  if (!(await confirmBox('入退室の履歴を削除', ids.length + '件の入室・退室などの履歴を削除します。', '削除する'))) return;
+  try {
+    for (let i = 0; i < ids.length; i += 400){
+      const b = writeBatch(db); ids.slice(i, i + 400).forEach(x => b.delete(doc(db, r.col, r.id, 'messages', x))); await b.commit();
+    }
+    toast(ids.length + '件削除しました');
+  } catch(e){ hideSysLocal(r.id, ids); toast('サーバー側では削除できないため、この端末で非表示にしました'); }
+}
 function roomMenu(anchor){
   const r = rooms[cur]; if (!r) return;
   const items = [];
@@ -992,6 +1007,7 @@ function roomMenu(anchor){
   } else { items.push({icon:'download',label:'会話をエクスポート',run:()=>exportCurrentRoom()}); items.push({icon:'trash',label:'このDMを削除',danger:true,run:()=>removeRoom(r)}); }
   if (!items.some(x=>x.label.includes('お気に入り'))) items.push({icon:'star',label:isFavoriteRoom(r.id)?'お気に入りを解除':'お気に入りに追加',run:()=>toggleFavoriteRoom(r.id)});
   if (!items.some(x=>x.label.includes('通知'))) items.push({icon:isRoomMuted(r.id)?'bell':'belloff',label:isRoomMuted(r.id)?'このルームの通知を再開':'このルームをミュート',run:()=>toggleRoomMuted(r.id)});
+  if (!isDm(r)) items.push({icon:'trash',label:'入退室の履歴を削除',run:()=>clearJoinLeaveHistory(r)});
   if (isStealth(r.id)){ items.unshift({icon:'user-plus',label:'通常参加に切り替える',run:()=>stealthOff(r)},{icon:'logout',label:'こっそり退出',danger:true,run:()=>stealthLeave(r)}); }
   popup(anchor, items);
 }
@@ -1086,7 +1102,7 @@ function subscribeMessages(id){
         els.get(mid).replaceWith(el); els.set(mid, el);
       } else {
         els.get(mid)?.remove();
-        const el = msgEl(mid, m); els.set(mid, el);
+        const el = msgEl(mid, m); els.set(mid, el); if (!first && ch.type === 'added') el.classList.add('enter');
         box.insertBefore(el, box.children[ch.newIndex] || null);
         if (ch.type === 'added' && m.author === me.uid) mineAdded = true;
       }
@@ -1105,9 +1121,14 @@ async function flushRead(){
   const ids = [...pendingRead]; pendingRead.clear();
   try {
     const b = writeBatch(db);
-    ids.forEach(mid => b.update(doc(db, r.col, r.id, 'messages', mid), {readBy: arrayUnion(me.uid)}));
+    ids.forEach(mid => b.update(doc(db, r.col, r.id, 'messages', mid), window.__noReadAt ? {readBy: arrayUnion(me.uid)} : {readBy: arrayUnion(me.uid), ['readAt.'+me.uid]: serverTimestamp()}));
     await b.commit();
-  } catch(e){ /* a message may have vanished */ }
+  } catch(e){
+    if (!window.__noReadAt){
+      window.__noReadAt = true; // ルールが readAt を許可しない場合は、日時なしで既読だけ付ける
+      try { const b2 = writeBatch(db); ids.forEach(mid => b2.update(doc(db, r.col, r.id, 'messages', mid), {readBy: arrayUnion(me.uid)})); await b2.commit(); } catch(_){}
+    }
+  }
 }
 function linkify(t){
   const out = []; const re = /(https?:\/\/[^\s<]+)/g; let last = 0, m;
@@ -1120,7 +1141,10 @@ function linkify(t){
   return out;
 }
 function msgEl(id, m){
-  if (m.type === 'system') return h('div',{class:'sys','data-id':id}, m.text);
+  if (m.type === 'system'){
+    if (getLocalSet('hidden_sys').has(cur + '/' + id)) return h('div',{hidden:true,'data-id':id});
+    return h('div',{class:'sys','data-id':id,title:'タップで削除',onclick:()=>removeSysMsg(id)}, m.text);
+  }
   const mine = m.author === me.uid, r = rooms[cur];
   const el = h('div',{class:'msg'+(mine?' mine':''),'data-id':id});
   if (!mine && r && !isDm(r)) el.append(h('div',{class:'who'}, nameOf(m.author)));
@@ -1162,7 +1186,7 @@ function msgEl(id, m){
   const readers = [...new Set((m.readBy||[]).filter(u => u && u !== m.author))];
   const receipt = !m.deleted
     ? h('button',{class:'read-receipt',type:'button',title:'既読メンバーを確認',onclick:ev=>{ev.stopPropagation();showReadBy(m,r);}},
-        readers.length ? (r && isDm(r) ? '既読' : '既読 '+readers.length) : '未読')
+        readers.length ? (r && isDm(r) ? '既読' + (ms((m.readAt||{})[readers[0]]) ? ' ' + fmtTime(m.readAt[readers[0]]) : '') : '既読 '+readers.length) : '未読')
     : null;
   el.append(h('div',{class:'info'}, pic ? h('button',{class:'imore','aria-label':'メニューを開く',onclick:toggle}, ico('more',16)) : null, fmtTime(m.ts), m.edited && !m.deleted ? '編集済み' : null, receipt));
   return el;
@@ -1171,13 +1195,15 @@ function showReadBy(m,r){
   const ids = [...new Set((m.readBy||[]).filter(u=>u && u!==m.author))];
   const members = (r ? visibleMembers(r) : []).filter(u=>u && u!==m.author);
   const list = h('div',{style:'display:grid;gap:6px'});
+  ids.sort((a,b)=>ms((m.readAt||{})[a])-ms((m.readAt||{})[b]));
   const readSet = new Set(ids);
   const ordered = [...new Set([...ids, ...members.filter(u=>!readSet.has(u))])];
   if (!ordered.length) list.append(h('div',{class:'empty'},'確認できるメンバーがいません。'));
   else ordered.forEach(uid=>{
     const name = nameOf(uid), read = readSet.has(uid);
-    list.append(h('div',{class:'urow'},avatar(uid,name,true,isOnline(uid)),h('div',{class:'n'},name,h('small',{},read?'既読':'未読')),
-      h('span',{style:'margin-left:auto;color:var(--sub);font-size:12px'},read?'既読':'未読')));
+    const t = ms((m.readAt||{})[uid]), when = t ? new Date(t).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+    list.append(h('div',{class:'urow'},avatar(uid,name,true,isOnline(uid)),h('div',{class:'n'},name,h('small',{},read?(when?'既読 · '+when:'既読（日時は記録なし）'):'未読')),
+      h('span',{style:'margin-left:auto;color:var(--sub);font-size:12px'},read?(when||'既読'):'未読')));
   });
   modal('既読状況（'+ids.length+'人既読）',list);
 }
