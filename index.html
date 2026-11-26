@@ -387,6 +387,26 @@ button.set-row:hover,.set-profile:hover{background:var(--hover)}
 .sys{cursor:pointer}
 .sys:hover{text-decoration:line-through;opacity:.8}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ---- Client 2.1: animation cleanup ---- */
+.msg.enter,.msg.mine.enter{animation:fadeIn .15s ease-out}
+.modal{animation:fadeIn .15s ease-out}
+.popup,.sug{animation:fadeIn .1s ease-out}
+.stamps.show{animation:fadeIn .12s ease-out}
+.toast{animation:fadeIn .15s ease-out}
+.msg.open .bar{animation:fadeIn .1s ease-out}
+.login-card{animation:fadeIn .2s ease-out}
+.lb img{animation:none}
+.callov .avatar{animation:none}
+.btn:active,.icon-btn:active,.cbtn:active,.set-row:active,.urow:active,.room:active{transform:none}
+.bar button:hover,.sgrid button:hover{transform:none}
+.btn:not(:disabled):hover{filter:none}
+.sys:hover{text-decoration:none;opacity:1}
+.main>.msgs{animation:none}
+.vbadge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--accent);color:var(--accent-ink);margin-left:5px;vertical-align:-3px;flex:none}
+.vbadge svg{stroke-width:3}
+.room .name{display:flex;align-items:center}
+.room.official{background:var(--hover)}
 </style>
 </head>
 <body>
@@ -397,7 +417,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, limitToLast, serverTimestamp, arrayUnion, arrayRemove, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const VERSION = 'Client 2.0 (2026-11-25)';
+const VERSION = 'Client 2.1 (2026-11-26)';
 const firebaseConfig = {
   apiKey: "AIzaSyDq8dDcnA2JHC3Xi7seXFIkidwmHoI7Ihg",
   authDomain: "chat-app-44d95.firebaseapp.com",
@@ -424,6 +444,7 @@ function h(tag, attrs, ...kids){
   return e;
 }
 const IC = {
+  check:'<path d="m5 12 5 5 9-10"/>',
   eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   star:'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3z"/>',
   send:'<path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/>',
@@ -511,6 +532,44 @@ function popup(anchor, items){
   p.style.top = top + 'px';
   p.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
   setTimeout(()=>document.addEventListener('click', function f(){ p.remove(); document.removeEventListener('click', f); }), 0);
+}
+
+/* ---------- official room / lock / verify ---------- */
+const OFFICIAL_ID = 'official', UNLOCK_PW = 'admin';
+const isOfficial = r => !!r && r.id === OFFICIAL_ID;
+const isUnlocked = () => sessionStorage.getItem('cs_unlock') === '1';
+const verified = uid => !!users[uid]?.verified;
+const badge = () => h('span',{class:'vbadge',title:'公式','aria-label':'公式'}, ico('check',11));
+function lockedCheck(r){
+  if (isOfficial(r) && !isUnlocked()){ toast('このルームはロックされています'); unlockModal(); return true; }
+  return false;
+}
+function unlockModal(){
+  const pw = h('input',{class:'field',type:'password',placeholder:'パスワード',autocomplete:'off'});
+  const err = h('div',{style:'color:var(--danger);font-size:13px;min-height:18px'});
+  const wrap = h('div',{style:'display:grid;gap:12px'});
+  let close;
+  const draw = () => {
+    if (!isUnlocked()){
+      const ok = () => { if (pw.value === UNLOCK_PW){ sessionStorage.setItem('cs_unlock','1'); toast('ロックを解除しました'); const m = $('#msgInput'); if (m) m.placeholder = 'メッセージを入力'; draw(); } else err.textContent = 'パスワードが違います'; };
+      pw.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) ok(); };
+      wrap.replaceChildren(h('p',{},'公式ルームの発言・ファイル送信にはロック解除が必要です。'), pw, err, h('button',{class:'btn',onclick:ok},'解除する'));
+    } else {
+      const v = verified(me.uid);
+      wrap.replaceChildren(h('p',{},'ロック解除済みです。'),
+        h('button',{class:'btn',onclick:async()=>{ try { await updateDoc(doc(db,'users',me.uid),{verified:!v}); toast(v ? '公式認証を解除しました' : 'このアカウントを公式として認証しました'); close(); } catch(e){ toast('変更できませんでした'); } }}, v ? '公式認証を解除する' : 'このアカウントを公式として認証する'),
+        h('button',{class:'btn ghost',onclick:()=>{ sessionStorage.removeItem('cs_unlock'); toast('再ロックしました'); close(); }},'再ロックする'));
+    }
+  };
+  close = modal('公式ロック', wrap); draw(); setTimeout(()=>pw.focus(),50);
+}
+async function ensureOfficial(skipOpen){
+  try {
+    const ref = doc(db,'rooms',OFFICIAL_ID), sn = await getDoc(ref);
+    if (!sn.exists()) await setDoc(ref,{id:OFFICIAL_ID,name:'ChatSpace 公式',desc:'公式ルーム',members:[me.uid],createdBy:me.uid,createdAt:serverTimestamp(),lastMsg:'',lastMsgTs:serverTimestamp(),official:true});
+    else if (!(sn.data().members||[]).includes(me.uid)) await updateDoc(ref,{members:arrayUnion(me.uid)});
+    if (!skipOpen && !sessionStorage.getItem('cs_off_open')){ sessionStorage.setItem('cs_off_open','1'); waitOpen(OFFICIAL_ID); }
+  } catch(e){ console.error('official', e); }
 }
 
 const app = $('#app');
@@ -670,7 +729,7 @@ function startApp(){
         h('div',{id:'notifyBanner'}),
         h('div',{class:'filters',id:'filters'}),
         h('div',{class:'room-list',id:'roomList'}),
-        h('div',{class:'ver'},VERSION)),
+        h('div',{class:'ver',style:'user-select:none',onclick:(()=>{let n=0,t;return()=>{n++;clearTimeout(t);t=setTimeout(()=>n=0,900);if(n>=3){n=0;unlockModal();}}})()},VERSION)),
       h('main',{class:'main',id:'main'}, welcome())));
   drawFilters();
   document.removeEventListener('keydown', onCommandKey);
@@ -687,6 +746,7 @@ function startApp(){
   navigator.serviceWorker?.addEventListener('message', e => {
     if (e.data && e.data.type === 'NOTIFICATION_CLICK'){ try{ const id = new URL(e.data.url, location.origin).searchParams.get('room'); if (id && rooms[id]) openRoom(id); }catch(_){} }
   });
+  ensureOfficial(!!sessionStorage.getItem('cs_room'));
   const room = sessionStorage.getItem('cs_room'), inv = sessionStorage.getItem('cs_invite');
   if (room){ sessionStorage.removeItem('cs_room'); joinByCode(room); }
   if (inv){ sessionStorage.removeItem('cs_invite'); joinByInvite(inv); }
@@ -785,6 +845,7 @@ function adminPanel(){
 /* ---------- v3.6: forward / schedule / mini games ---------- */
 let schedT;
 async function sendTo(r, data, preview){
+  if (lockedCheck(r)) return;
   await addDoc(msgCol(r), {author:me.uid, ts:serverTimestamp(), readBy:[me.uid], reactions:{}, ...data});
   updateDoc(roomRef(r), {lastMsg:String(preview).slice(0,80), lastMsgTs:serverTimestamp(), lastUid:me.uid, lastMentions:[]}).catch(()=>{});
 }
@@ -895,16 +956,16 @@ function gameView(id, m){
 function renderRooms(){
   const list = $('#roomList'); if (!list) return;
   const arr = Object.values(rooms).filter(r => r.id !== temporaryRoomId && (listFilter==='all' || (listFilter==='dm') === isDm(r)))
-    .sort((a,b)=>Number(isFavoriteRoom(b.id))-Number(isFavoriteRoom(a.id)) || (ms(b.lastMsgTs)||ms(b.createdAt)) - (ms(a.lastMsgTs)||ms(a.createdAt)));
+    .sort((a,b)=>Number(isOfficial(b))-Number(isOfficial(a)) || Number(isFavoriteRoom(b.id))-Number(isFavoriteRoom(a.id)) || (ms(b.lastMsgTs)||ms(b.createdAt)) - (ms(a.lastMsgTs)||ms(a.createdAt)));
   list.replaceChildren();
   if (!arr.length){ list.append(h('div',{class:'empty'},'ここにはまだ何もありません。',h('br'),'「ルーム」から作成・参加、または「DM」で友だちに話しかけましょう。')); return; }
   for (const r of arr){
     const title = roomTitle(r), other = isDm(r) ? otherUid(r) : null;
     const unread = r.id !== cur && r.lastUid && r.lastUid !== me.uid && ms(r.lastMsgTs) > (readMap[r.id] || 0);
-    list.append(h('button',{class:'room'+(r.id===cur?' active':'')+(unread?' unread':''),onclick:()=>openRoom(r.id)},
+    list.append(h('button',{class:'room'+(isOfficial(r)?' official':'')+(r.id===cur?' active':'')+(unread?' unread':''),onclick:()=>openRoom(r.id)},
       avatar(other || r.createdBy || r.id, title, false, other && isOnline(other)),
       h('div',{class:'meta'},
-        h('div',{class:'top'}, h('div',{class:'name'},title+(isFavoriteRoom(r.id)?' ★':'')), h('div',{class:'time'},fmtList(r.lastMsgTs))),
+        h('div',{class:'top'}, h('div',{class:'name'},title,isOfficial(r)?badge():null,isFavoriteRoom(r.id)?' ★':''), h('div',{class:'time'},fmtList(r.lastMsgTs))),
         h('div',{class:'last'}, Object.entries(r.typing||{}).some(([u,t])=>u!==me.uid&&Date.now()-ms(t)<4000) ? Object.entries(r.typing||{}).filter(([u,t])=>u!==me.uid&&Date.now()-ms(t)<4000).map(([u])=>nameOf(u)).join('、')+' が入力中…' : (r.lastMsg || (isDm(r) ? 'メッセージを送ってみましょう' : (r.desc || 'ルームID: '+r.id))))),
       unread ? h('span',{class:'dot','aria-label':'未読'}) : null));
   }
@@ -945,7 +1006,7 @@ function renderHeader(){
   const headItems=[
     h('button',{class:'icon-btn back','aria-label':'一覧に戻る',onclick:()=>isTemporaryRoom(cur)?exitTemporaryRoom():document.body.classList.remove('in-chat')}, ico('back')),
     avatar(other || r.createdBy || r.id, roomTitle(r), true, other && isOnline(other)),
-    h('div',{class:'titles'}, h('div',{class:'t'},roomTitle(r)), h('div',{class:cls},sub))
+    h('div',{class:'titles'}, h('div',{class:'t'},roomTitle(r),isOfficial(r)?badge():null), h('div',{class:cls},sub))
   ];
   if(!isTemporaryRoom(cur)) headItems.push(
     h('button',{class:'icon-btn','aria-label':isDm(r) ? '電話をかける' : 'グループ通話',onclick:() => isDm(r) ? startCall(false) : groupCallAction(false)}, ico('phone')),
@@ -1009,7 +1070,8 @@ function roomMenu(anchor){
   if (!items.some(x=>x.label.includes('通知'))) items.push({icon:isRoomMuted(r.id)?'bell':'belloff',label:isRoomMuted(r.id)?'このルームの通知を再開':'このルームをミュート',run:()=>toggleRoomMuted(r.id)});
   if (!isDm(r)) items.push({icon:'trash',label:'入退室の履歴を削除',run:()=>clearJoinLeaveHistory(r)});
   if (isStealth(r.id)){ items.unshift({icon:'user-plus',label:'通常参加に切り替える',run:()=>stealthOff(r)},{icon:'logout',label:'こっそり退出',danger:true,run:()=>stealthLeave(r)}); }
-  popup(anchor, items);
+  if (isOfficial(r)) items.push({icon:'shield',label:'ロック解除・公式認証',run:unlockModal});
+  popup(anchor, isOfficial(r) ? items.filter(x=>!x.danger) : items);
 }
 async function copy(t, ok){ try{ await navigator.clipboard.writeText(t); toast(ok); }catch(e){ prompt('コピーしてください', t); } }
 const isAdmin = (r, uid=me.uid) => r.createdBy === uid || (r.admins||[]).includes(uid);
@@ -1032,7 +1094,7 @@ function membersModal(r0){
       }));
       if (iAmAdmin && u !== me.uid && !creator && (iAmCreator || !admin)) acts.push(btn('BAN', 'danger', () => banMember(r, u, draw)));
       return h('div',{class:'urow'}, avatar(u, nameOf(u), true, isOnline(u)),
-        h('div',{class:'n'}, nameOf(u), h('small',{}, label)),
+        h('div',{class:'n'}, nameOf(u), verified(u)?badge():null, h('small',{}, label)),
         acts.length ? h('div',{style:'display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end'}, acts) : null);
     }));
     const banned = r.banned || [];
@@ -1147,7 +1209,7 @@ function msgEl(id, m){
   }
   const mine = m.author === me.uid, r = rooms[cur];
   const el = h('div',{class:'msg'+(mine?' mine':''),'data-id':id});
-  if (!mine && r && !isDm(r)) el.append(h('div',{class:'who'}, nameOf(m.author)));
+  if (!mine && r && !isDm(r)) el.append(h('div',{class:'who'}, nameOf(m.author), verified(m.author)?badge():null));
   if (m.replyToText && !m.deleted) el.append(h('div',{class:'quote'}, m.replyToText));
   const toggle = () => {
     if (m.deleted) return;
@@ -1482,7 +1544,7 @@ function onCommandKey(e){if(e.key==='Escape')document.querySelectorAll('.popup')
 /* ---------- composer ---------- */
 function composer(){
   const draftKey = 'cs_draft_v1_'+me.uid+'_'+cur;
-  const ta = h('textarea',{id:'msgInput',rows:'1',placeholder:(rooms[cur]?.postAdminOnly && !isSiteAdmin()) ? '管理者だけが書き込めます' : 'メッセージを入力','aria-label':'メッセージ'});
+  const ta = h('textarea',{id:'msgInput',rows:'1',placeholder:(isOfficial(rooms[cur]) && !isUnlocked()) ? '🔒 ロックを解除すると送信できます' : ((rooms[cur]?.postAdminOnly && !isSiteAdmin()) ? '管理者だけが書き込めます' : 'メッセージを入力'),'aria-label':'メッセージ'});
   const sendBtn = h('button',{class:'icon-btn send','aria-label':'送信',disabled:true}, ico('send'));
   const panel = h('div',{class:'stamps',id:'stamps'});
   const cats = Object.keys(STAMPS); let active = cats[0];
@@ -1492,7 +1554,7 @@ function composer(){
   drawPanel();
   const stampBtn = h('button',{class:'icon-btn',id:'stampBtn','aria-label':'スタンプ',onclick:e=>{ e.stopPropagation(); panel.classList.toggle('show'); }}, ico('smile',24));
   const fileIn = h('input',{type:'file',accept:'image/*',hidden:true,onchange:e=>{ const f = e.target.files[0]; e.target.value=''; if (f) sendImage(f); }});
-  const imgBtn = h('button',{class:'icon-btn','aria-label':'画像を送る',onclick:()=>{ const r = rooms[cur]; if (r && !isDm(r) && r.imageAdminOnly && !isAdmin(r)) return toast('このルームでは、画像を送れるのは管理者だけです'); fileIn.click(); }}, ico('image',24));
+  const imgBtn = h('button',{class:'icon-btn','aria-label':'画像を送る',onclick:()=>{ const r = rooms[cur]; if (lockedCheck(r)) return; if (r && !isDm(r) && r.imageAdminOnly && !isAdmin(r)) return toast('このルームでは、画像を送れるのは管理者だけです'); fileIn.click(); }}, ico('image',24));
   ta.addEventListener('paste', e => { const f = [...(e.clipboardData?.files||[])].find(x => x.type.startsWith('image/')); if (f){ e.preventDefault(); sendImage(f); } });
   const sug = h('div',{class:'sug',hidden:true});
   let sugFirst = null;
@@ -1537,6 +1599,7 @@ function composer(){
 }
 async function doSend(kind, text){
   text = String(text).trim(); const r = rooms[cur]; if (isTemporaryRoom(cur)) return toast('一時入室中は発言できません'); if (!text || !r) return;
+  if (lockedCheck(r)) return;
   if (r.postAdminOnly && !isSiteAdmin()) return toast(POST_MSG);
   const data = {author:me.uid, text, ts:serverTimestamp(), readBy:[me.uid], reactions:{}};
   if (kind === 'stamp') data.stamp = true;
@@ -1568,6 +1631,7 @@ function pollModal(){
   setTimeout(() => q.focus(), 50);
 }
 async function sendPoll(r, question, options, multi){
+  if (lockedCheck(r)) return;
   const data = {author:me.uid, text:question, hasPoll:true, poll:{q:question, options, multi:!!multi, closed:false}, votes:{}, ts:serverTimestamp(), readBy:[me.uid], reactions:{}};
   try {
     await addDoc(msgCol(r), data);
@@ -1670,6 +1734,7 @@ async function compressImage(file){
 }
 async function sendImage(file){
   const r = rooms[cur]; if (isTemporaryRoom(cur)) return toast('一時入室中は画像を送信できません'); if (!r) return;
+  if (lockedCheck(r)) return;
   if (r.postAdminOnly && !isSiteAdmin()) return toast(POST_MSG);
   if (!isDm(r) && r.imageAdminOnly && !isAdmin(r)) return toast('このルームでは、画像を送れるのは管理者だけです');
   if (!file.type.startsWith('image/')) return toast('画像ファイルを選んでください');
